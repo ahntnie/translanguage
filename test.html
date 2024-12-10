@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            text-align: center;
+        }
+
+        #transcript {
+            font-size: 24px;
+            color: #333;
+            margin-top: 20px;
+        }
+
+        button {
+            font-size: 16px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Chuyển Giọng Nói Thành Văn Bản</h1>
+    <p>Nhấn nút để bắt đầu thu giọng nói!</p>
+    <button onclick="startRecognition()">Bắt Đầu Thu Giọng Nói</button>
+
+    <div id="transcript">Văn bản sẽ xuất hiện tại đây...</div>
+
+    <script>
+        function startRecognition() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'vi-VN'; // Ngôn ngữ Tiếng Việt
+            recognition.continuous = true; // Nhận diện liên tục
+            recognition.interimResults = true; // Kết quả tạm thời (trong khi đang nói)
+
+            recognition.onresult = function (event) {
+                const transcript = event.results[event.results.length - 1][0].transcript;
+                document.getElementById('transcript').innerText = transcript;
+            };
+
+            recognition.onerror = function (event) {
+                console.error("Lỗi: " + event.error);
+                document.getElementById('transcript').innerText = "Đã xảy ra lỗi khi nhận diện giọng nói.";
+            };
+
+            recognition.start();
+        }
+    </script>
+
+</body>
+
+</html>
