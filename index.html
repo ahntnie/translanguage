@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speech to Text Demo</title>
+    <title>Speech to Text Demo (Web Speech API)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -32,7 +32,6 @@
 
         button.recording {
             background-color: #f44336;
-            /* Đổi màu khi thu âm */
         }
 
         #status {
@@ -49,104 +48,81 @@
     <p>Nhấn nút để bắt đầu thu giọng nói hoặc dừng thu âm!</p>
     <button id="recordButton" onclick="toggleRecognition()">Bắt Đầu Thu Giọng Nói</button>
 
-    <!-- Chỉ báo trạng thái -->
     <div id="status"></div>
-
-    <!-- Văn bản sẽ hiển thị khi nhận diện xong -->
     <div id="transcript">Văn bản sẽ xuất hiện tại đây...</div>
 
     <script>
         let recognition;
         let isRecording = false;
-        let noSpeechTimeout; // Timeout để kiểm tra không có âm thanh sau 3 giây
-        let silenceTimeout; // Timeout để kiểm tra khi ngừng nói trong 2 giây
+
+        // Kiểm tra xem trình duyệt có hỗ trợ SpeechRecognition hay không
+        if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'vi-VN'; // Ngôn ngữ tiếng Việt
+            recognition.continuous = true; // Nhận diện liên tục
+            recognition.interimResults = true; // Kết quả tạm thời (trong khi nói)
+        } else {
+            alert("Trình duyệt của bạn không hỗ trợ Web Speech API.");
+        }
 
         // Hàm toggle thu âm (Bắt đầu hoặc dừng thu âm)
         function toggleRecognition() {
             if (isRecording) {
-                stopRecognition();  // Nếu đang thu âm, dừng thu âm
+                stopRecognition();
             } else {
-                startRecognition(); // Nếu không, bắt đầu thu âm
+                startRecognition();
             }
         }
 
         // Hàm bắt đầu thu âm
         function startRecognition() {
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'vi-VN'; // Ngôn ngữ Tiếng Việt
-            recognition.continuous = true; // Nhận diện liên tục
-            recognition.interimResults = true; // Kết quả tạm thời (trong khi đang nói)
-
-            // Đánh dấu là đang thu âm
             isRecording = true;
-            document.getElementById('recordButton').classList.add('recording'); // Đổi màu nút khi thu âm
-            document.getElementById('status').innerText = "Đang thu âm..."; // Hiển thị trạng thái
+            document.getElementById('recordButton').classList.add('recording');
+            document.getElementById('status').innerText = "Đang thu âm...";
             document.getElementById('transcript').innerText = "Đang nhận diện...";
 
-            // Bắt đầu nhận diện
             recognition.start();
 
+            // Lắng nghe kết quả nhận diện
             recognition.onresult = function (event) {
                 const transcript = event.results[event.results.length - 1][0].transcript;
 
-                // Khi có kết quả nhận diện tạm thời
+                // Nếu là kết quả cuối cùng, hiển thị
                 if (event.results[event.results.length - 1].isFinal) {
                     document.getElementById('transcript').innerText = transcript;
-                    resetSilenceTimeout(); // Reset timeout khi có kết quả nhận diện
-
-                    // Khi ngừng nói khoảng 2 giây mới hiện văn bản
-                    clearTimeout(silenceTimeout);
-                    silenceTimeout = setTimeout(function () {
-                        // Ngừng thu âm khi không có âm thanh trong 2 giây
-                        stopRecognition();
-                    }, 2000);
+                    resetRecognitionTimeout();
                 } else {
+                    // Nếu là kết quả tạm thời, hiển thị
                     document.getElementById('transcript').innerText = transcript;
                 }
-
-                resetNoSpeechTimeout(); // Reset lại thời gian không có âm thanh
             };
 
             recognition.onerror = function (event) {
-                console.error("Lỗi: " + event.error);
-                document.getElementById('transcript').innerText = "Đã xảy ra lỗi khi nhận diện giọng nói.";
-                stopRecognition(); // Dừng nhận diện nếu có lỗi
+                document.getElementById('status').innerText = `Lỗi: ${event.error}`;
             };
 
             recognition.onend = function () {
-                // Khi thu âm kết thúc, nếu không có âm thanh trong 3 giây, tự động dừng và thông báo
-                noSpeechTimeout = setTimeout(function () {
-                    stopRecognition();
-                    document.getElementById('transcript').innerText = "Không có âm thanh nào.";
-                }, 3000); // Dừng thu âm sau 3 giây nếu không có âm thanh
+                if (isRecording) {
+                    startRecognition(); // Tiếp tục nhận diện nếu không có lỗi
+                }
             };
         }
 
         // Hàm dừng thu âm
         function stopRecognition() {
             isRecording = false;
-            document.getElementById('recordButton').classList.remove('recording'); // Quay lại màu ban đầu
-            document.getElementById('status').innerText = ""; // Xóa trạng thái
-            recognition.stop(); // Dừng nhận diện
-            clearTimeout(noSpeechTimeout); // Xóa timeout nếu dừng thu âm thủ công
+            document.getElementById('recordButton').classList.remove('recording');
+            document.getElementById('status').innerText = "";
+            recognition.stop();
         }
 
-        // Hàm reset timer khi có âm thanh
-        function resetNoSpeechTimeout() {
-            clearTimeout(noSpeechTimeout); // Xóa timeout cũ
+        // Hàm reset timeout để dừng thu âm khi không có âm thanh
+        function resetRecognitionTimeout() {
+            clearTimeout(noSpeechTimeout);
             noSpeechTimeout = setTimeout(function () {
                 stopRecognition();
                 document.getElementById('transcript').innerText = "Không có âm thanh nào.";
-            }, 3000); // Dừng thu âm sau 3s nếu không có âm thanh
-        }
-
-        // Hàm reset timer khi người dùng ngừng nói
-        function resetSilenceTimeout() {
-            clearTimeout(silenceTimeout); // Xóa timeout cũ
-            silenceTimeout = setTimeout(function () {
-                // Nếu không có âm thanh trong 2 giây thì ngừng thu âm và giữ văn bản
-                stopRecognition();
-            }, 2000); // Ngừng thu âm sau 2 giây không có âm thanh
+            }, 3000); // Dừng thu âm sau 3 giây nếu không có âm thanh
         }
     </script>
 
